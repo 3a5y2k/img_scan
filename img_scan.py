@@ -583,7 +583,9 @@ def get_parameter():
 
     
     parser.add_argument("--scan-path", required=True, help="path to scan")
-    parser.add_argument("--output", required=False, help="path for selected files")
+    parser.add_argument("--output", required=False, help="path for folder with files without duplicate")
+    parser.add_argument("--duplicate", action="store_true", help="get list of duplicate files")
+
     #parser.add_argument("--file-typ", action="append", help="find specificate file type")
     parser.add_argument("--log-level", required=False, help="set logging level, debug")
     
@@ -698,6 +700,32 @@ def findDuplicateImages(folder_path):
             image_dup_list.append(image_file)
         else:
             image_list.append(hash_value)
+    print(f'image files was found: {len(image_files)} duplicate:{len(image_dup_list)}')
+    return image_dup_list
+
+import shutil
+def createCleanImageFolder(folder_path, output_path, rename_pattern = '_image_'):
+    
+    valid_file_types = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"}
+    image_files = file_list_from_folder_by_file_type(folder_path, valid_file_types)
+
+    os.mkdir(output_path)
+    os.path.exists(output_path)
+
+    image_dup_list = set()
+    image_list = set()
+    for image_file in image_files:
+        hash_value = calculate_image_pixel_hash(image_file)        
+        if hash_value in image_list:
+            image_dup_list.append(image_file)
+        else:
+            image_list.append(hash_value)
+            # neuer file name
+            shutil.copy2(image_file, 'hierNameEinsetzen')
+            
+
+    print(f'image files was found: {len(image_files)} duplicate:{len(image_dup_list)}')
+    return image_dup_list
 
 def findDuplicateVideos(folder_path):
     valid_file_types = {".mp4", ".mkv", ".avi", ".mov", ".flv", ".wmv"}
@@ -723,31 +751,34 @@ def findDuplicateVideos(folder_path):
             video_dub_list.append(video_file)
         else:
             video_list.append(thumbnail_hash)
+    print(f'video files was found: {len(video_files)} duplicate:{len(video_dub_list)}')
+    return video_dub_list
 
 def main():
     
     args = get_parameter()
-    
-    if args.with_db:
-       # load config
-        logging.info("server mode: start init")
-        # db connection check
-        db_conf = config.get_db_config()
-        db_manager = DBManager(db_conf)
-        logging.info("server mode: finish init")
+    folder_path = args.scan_path
 
     # ToDo:
+    # Server mode
     # - speichern der video hashes , erledigt
     # - abgleich der doppelten dateien (view existieren)
     # - merge function der dateien
     # - sortieren in ordner
+    # - weitere Server angeben um Last zuverteilen
+    # -- File Service
+    # -- GPU und CPU mode
+    #  
     # weitere Funktionen
     # - auslesen von gps daten (BIlder erledigt, Videos muss noch getestet werden), lokalisierung der Bilder nach Motiven
     # - kategorisierung der Aufnahmen nach Personen
     # - beschreibung der fotos
-    
-    folder_path = args.scan_path
-    
+    # Consolen Command
+    # - liste der doppelten Dateien ausgeben als json (erledigt)
+    # - prüfen auf doppelte Dateien (erledigt)
+    # - ordner erzeugen ohne doppelte dateien ohne und mit umbenennen der dateien
+    # - löschen der doppelten dateien
+
     
     #folder_path = './img_example/'
     #folder_path = './img_short_example/'
@@ -773,6 +804,30 @@ def main():
         return 1
 
 
+    # simple mode
+    if not args.with_db:
+        # is output parameter set
+        if args.output:
+            # no rename
+
+            # rename by date
+
+
+            return
+
+        rep_data = set()
+        rep_data.append(findDuplicateImages(folder_path))
+        rep_data.append(findDuplicateVideos(folder_path))
+        if args.duplicate:
+            print(f'duplicate_files:{json.dumps(rep_data, ensure_ascii=False, indent=4)}')
+        return
+    
+    # load config
+    logging.info("server mode: start init")
+    # db connection check
+    db_conf = config.get_db_config()
+    db_manager = DBManager(db_conf)
+    logging.info("server mode: finish init")
 
     ######## DEBUG ########
     # reset db
